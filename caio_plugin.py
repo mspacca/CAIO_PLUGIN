@@ -97,6 +97,7 @@ class swpi_plugin(threading.Thread):  #  do not change the name of the class
         if globalvars.meteo_data.wind_dir_ave != None : param_list.append(self._direzione_testo(int(globalvars.meteo_data.wind_dir_ave)))
         else :
             param_list.append("XXX");
+        # temperatura con 1 virgola decimale
         if globalvars.meteo_data.temp_out != None : param_list.append("{:.1f}".format((globalvars.meteo_data.temp_out)))
         else :
             param_list.append("0");
