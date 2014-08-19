@@ -34,11 +34,12 @@ class swpi_plugin(threading.Thread):  #  do not change the name of the class
     def __init__(self):
 
         ###################### Plugin Initialization ################
+        self.pluginName = str(sys.modules[__name__])
         self.last_measure_time = None
         self.sleep_time=600         # Attesa 10 Minuti
         self.url = "http://www.deltaeparapendio.it/a.php"
         self.station = "CAIO"
-        self.pluginName = str(sys.modules[__name__])
+        self.key_url = "?K=c46483fcc5"  # passowrd per invio dati ad a.php
         
         threading.Thread.__init__(self)
         ###################### End Initialization ##################
@@ -109,7 +110,7 @@ class swpi_plugin(threading.Thread):  #  do not change the name of the class
         param_list.append(Data)
         param_list.append(Ora)
         
-        parameters = '?K=c46483fcc5&' + _crea_url(param_list) # Crea la stringa parametri da passare all'url
+        parameters = self.key_url +'&' + _crea_url(param_list) # Crea la stringa parametri da passare all'url
         
         log(self.pluginName + " url: " + self.url + " - Parameters: " + parameters)
         try:
