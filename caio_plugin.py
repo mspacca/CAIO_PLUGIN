@@ -10,7 +10,7 @@
 #     (C) Mauro Pelagatti 2014
 #     
 #     created V 1.0     18/08/2014  - Prima versione
-#     Other versione in Github https://github.com/mspacca/CAIO_PLUGIN
+#     Other version in Github https://github.com/mspacca/CAIO_PLUGIN
 ##########################################################################
 
 """caio plugin."""
