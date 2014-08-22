@@ -103,7 +103,7 @@ class swpi_plugin(threading.Thread):  #  do not change the name of the class
         else :
             param_list.append("0");
         
-        DataOra = str(datetime.now()) 
+        DataOra = str(datetime.datetime.now()) 
         
         Data = "%s/%s/%s" % (DataOra[8:10],DataOra[5:7],DataOra[0:4])  # dd/mm/yyyy
         Ora = "%s:%s" % (DataOra[11:13],DataOra[14:16])                # hh:mm
