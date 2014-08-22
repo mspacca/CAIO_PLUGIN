@@ -52,7 +52,7 @@ class swpi_plugin():  #  do not change the name of the class
         self.data = ""      # Data attuale
         self.ora = ""       # Ora attuale
         
-        threading.Thread.__init__(self)
+        #threading.Thread.__init__(self)
         ###################### End Initialization ##################
 
     def logToServer(self):
@@ -113,7 +113,7 @@ class swpi_plugin():  #  do not change the name of the class
         else :
             param_list.append("0");
         
-        DataOra = str(datetime.now()) 
+        DataOra = str(datetime.datetime.now()) 
         
         self.data = "%s/%s/%s" % (DataOra[8:10],DataOra[5:7],DataOra[0:4])  # dd/mm/yyyy
         self.ora = "%s:%s" % (DataOra[11:13],DataOra[14:16])                # hh:mm
@@ -129,11 +129,11 @@ class swpi_plugin():  #  do not change the name of the class
         
         self.Buffer_listaDatiWeb.append(param_list)
     
-        parameters = self.key_url +'&' + _crea_url(param_list) # Crea la stringa parametri da passare all'url
-        log(self.pluginName + " url: " + self.url + " - Parameters: " + parameters)
         # Scansiona la lista buffer precedentemente salvata quando non c'era connessione per inviarla al server
         tempbuffer = []
         for lista in self.Buffer_listaDatiWeb:
+            parameters = self.key_url +'&' + self._crea_url(lista) # Crea la stringa parametri da passare all'url
+            log(self.pluginName + " url: " + self.url + " - Parameters: " + parameters)
             try:
                 r = requests.get(self.url+parameters,timeout=10)
                 msg = r.text.splitlines()
@@ -144,18 +144,18 @@ class swpi_plugin():  #  do not change the name of the class
                     log("Log to " + self.station + " Result ok")
                     errconn = False
             except Exception,e:
-                log("Error Logging to " + self.station & " " + str(e) )
+                log("Error Logging to " + self.station + " " + str(e) )
                 errconn = True
                 
             if errconn:                                  # Se errore connessione
-                if lista[7] == 0:                        # e se ho i dati nuovi quindi senza orario e data
+                if lista[7] == "0":                        # e se ho i dati nuovi quindi senza orario e data
                     listatemp = lista[:-2]               # Tolgo ora e data a valore 0
                     listatemp += [self.data,self.ora]    # e sostituisco con data e ora corrente
                     tempbuffer.append(listatemp)         # aggiungo alla lista temp buffer con data e ora          
                 else:
                     tempbuffer.append(lista)            # altrimenti rimetto in buffer i dati vecchi
         self.Buffer_listaDatiWeb = tempbuffer[:]        # riaggiorno il buffer 
-        _write_buffer_file()                            # e lo riscrivo sul file
+        self._write_buffer_file()                            # e lo riscrivo sul file
 
     def _read_buffer_file(self):
         # LEGGO BUFFER DA FILE
