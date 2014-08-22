@@ -29,6 +29,7 @@ import meteodata
 import urllib
 #from TTLib import  *
 import sensor_simulator
+import cPickle
 
 
 def log(message) :
@@ -40,13 +41,18 @@ class swpi_plugin():  #  do not change the name of the class
     def __init__(self):
 
         ###################### Plugin Initialization ################
+        self.pluginName = str(sys.modules[__name__])
         self.last_measure_time = None
-        self.sleep_time=1        # Attesa 10 Minuti
+        self.Buffer_listaDatiWeb = []   # Buffer per lista dati web se internet non presente
+        self.sleep_time=2        # Attesa 10 Minuti
         self.url = "http://www.deltaeparapendio.it/a.php"
         self.station = "CAIO"
-        self.pluginName = str(sys.modules[__name__])
-       # threading.Thread.__init__(self)
+        self.key_url = "?K=c46483fcc5"  # passowrd per invio dati ad a.php
+        self.path_buffer_file = "/home/mspacca/buffer_file.pi"
+        self.data = ""      # Data attuale
+        self.ora = ""       # Ora attuale
         
+        threading.Thread.__init__(self)
         ###################### End Initialization ##################
 
     def logToServer(self):
@@ -56,7 +62,7 @@ class swpi_plugin():  #  do not change the name of the class
 
 
         if(globalvars.meteo_data.last_measure_time == self.last_measure_time):
-            log(self.pluginName & ": No change detected")
+            log(self.pluginName + ": No change detected")
             return
 
 
@@ -102,30 +108,71 @@ class swpi_plugin():  #  do not change the name of the class
         if globalvars.meteo_data.wind_dir_ave != None : param_list.append(self._direzione_testo(int(globalvars.meteo_data.wind_dir_ave)))
         else :
             param_list.append("XXX");
-        if globalvars.meteo_data.temp_out != None : param_list.append(int(globalvars.meteo_data.temp_out))
+        # temperatura con 1 virgola decimale
+        if globalvars.meteo_data.temp_out != None : param_list.append("{:.1f}".format((globalvars.meteo_data.temp_out)))
         else :
             param_list.append("0");
         
-        DataOra = str(datetime.datetime.now()) 
+        DataOra = str(datetime.now()) 
         
-        Data = "%s/%s/%s" % (DataOra[8:10],DataOra[5:7],DataOra[0:4])  # dd/mm/yyyy
-        Ora = "%s:%s" % (DataOra[11:13],DataOra[14:16])                # hh:mm
+        self.data = "%s/%s/%s" % (DataOra[8:10],DataOra[5:7],DataOra[0:4])  # dd/mm/yyyy
+        self.ora = "%s:%s" % (DataOra[11:13],DataOra[14:16])                # hh:mm
         
-        param_list.append(Data)
-        param_list.append(Ora)
+        #param_list.append(Data)
+        #param_list.append(Ora)
+        # Inserisco in data e ora 0 che significa inserire la data e ora corrente nel file a.php una volta
+        # che crea il file dati.txt
+        param_list.append("0")
+        param_list.append("0")
         
-        parameters = '?K=c46483fcc5&' + self._crea_url(param_list) # Crea la stringa parametri da passare all'url
+        self._read_buffer_file()
         
+        self.Buffer_listaDatiWeb.append(param_list)
+    
+        parameters = self.key_url +'&' + _crea_url(param_list) # Crea la stringa parametri da passare all'url
         log(self.pluginName + " url: " + self.url + " - Parameters: " + parameters)
+        # Scansiona la lista buffer precedentemente salvata quando non c'era connessione per inviarla al server
+        tempbuffer = []
+        for lista in self.Buffer_listaDatiWeb:
+            try:
+                r = requests.get(self.url+parameters,timeout=10)
+                msg = r.text.splitlines()
+                if len(msg) > 0:
+                    log("Log to " + self.station + " Result: " +  msg[0])
+                    errconn = True
+                else:
+                    log("Log to " + self.station + " Result ok")
+                    errconn = False
+            except Exception,e:
+                log("Error Logging to " + self.station & " " + str(e) )
+                errconn = True
+                
+            if errconn:                                  # Se errore connessione
+                if lista[7] == 0:                        # e se ho i dati nuovi quindi senza orario e data
+                    listatemp = lista[:-2]               # Tolgo ora e data a valore 0
+                    listatemp += [self.data,self.ora]    # e sostituisco con data e ora corrente
+                    tempbuffer.append(listatemp)         # aggiungo alla lista temp buffer con data e ora          
+                else:
+                    tempbuffer.append(lista)            # altrimenti rimetto in buffer i dati vecchi
+        self.Buffer_listaDatiWeb = tempbuffer[:]        # riaggiorno il buffer 
+        _write_buffer_file()                            # e lo riscrivo sul file
+
+    def _read_buffer_file(self):
+        # LEGGO BUFFER DA FILE
         try:
-            r = requests.get(self.url+parameters,timeout=10)
-            msg = r.text.splitlines()
-            if len(msg) > 0:
-                log("Log to " + self.station + " Result: " +  msg[0])
-            else:
-                log("Log to " + self.station + " Result ok")
-        except Exception,e:
-            log("Error Logging to " + self.station & " " + str(e) )
+            f = file(self.path_buffer_file,  'rb')
+            self.Buffer_listaDatiWeb = cPickle.load(f)
+            f.close()
+        except:
+            log(self.pluginName + ": Buffer file non presente....")
+    
+    def _write_buffer_file(self):
+        try:
+            f = file(self.path_buffer_file, 'wb')
+            cPickle.dump(self.Buffer_listaDatiWeb, f, protocol=cPickle.HIGHEST_PROTOCOL)
+            f.close()
+        except:
+            log(self.pluginName + ": ERRORE SCRITTURA FILE BUFFER")
 
     def _crea_url(self, parameters_list):
         ''' CHIAMATA URL e PASSAGGIO VALORI PER IL SITO 
